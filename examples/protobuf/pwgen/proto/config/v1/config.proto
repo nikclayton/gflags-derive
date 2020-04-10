@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package pwgen.config.v1;
+
+message Config {
+    // String to use for password characters
+    string charset = 1;
+
+    // Desired password length
+    uint32 length = 2;
+}

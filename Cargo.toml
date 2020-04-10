@@ -1,0 +1,8 @@
+[package]
+name = "gflags-derive"
+version = "0.1.0"
+authors = ["Nik Clayton <nik@ngo.org.uk>"]
+edition = "2018"
+
+[dependencies]
+

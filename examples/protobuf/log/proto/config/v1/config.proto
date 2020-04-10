@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package log.config.v1;
+
+enum Level {
+    LEVEL_UNSPECIFIED = 0;
+    LEVEL_FATAL = 1;
+    LEVEL_CRITICAL = 2;
+    LEVEL_ERROR = 3;
+    LEVEL_WARNING = 4;
+    LEVEL_INFO = 5;
+    LEVEL_DEBUG = 6;
+    LEVEL_TRACE = 7;
+}
+
+message Config {
+    // Whether to log to STDERR
+    bool to_stderr = 1;
+
+    // If logging to STDERR, what level to log at
+    Level to_stderr_level = 2;
+
+    // The directory to log to
+    string dir = 3;
+}

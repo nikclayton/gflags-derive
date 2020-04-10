@@ -1,0 +1,8 @@
+[package]
+name = "pwgen"
+version = "0.1.0"
+authors = ["Nik Clayton <nik@ngo.org.uk>"]
+edition = "2018"
+
+[dependencies]
+rand = "0.7"

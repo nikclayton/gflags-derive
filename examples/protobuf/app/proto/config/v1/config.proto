@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package config.v1;
+
+import "log/proto/config/v1/config.proto";
+import "pwgen/proto/config/v1/config.proto";
+
+message Config {
+    string config_file = 1;
+
+    log.config.v1.Config log = 3;
+    pwgen.config.v1.Config pwgen = 4;
+}

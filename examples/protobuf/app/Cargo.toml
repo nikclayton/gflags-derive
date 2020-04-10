@@ -1,0 +1,14 @@
+[package]
+name = "app"
+version = "0.1.0"
+authors = ["Nik Clayton <nik@ngo.org.uk>"]
+edition = "2018"
+
+[dependencies]
+prost = "0.6"
+log = { path = "../log" }
+pwgen = { path = "../pwgen" }
+
+[build-dependencies]
+prost-build = "0.6"
+
