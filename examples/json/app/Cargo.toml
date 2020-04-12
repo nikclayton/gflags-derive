@@ -5,6 +5,8 @@ authors = ["Nik Clayton <nik@ngo.org.uk>"]
 edition = "2018"
 
 [dependencies]
+anyhow = "1.0"
 gflags = "0.3"
+gflags-derive = { path = "../../.." }
 log = { path = "../log" }
 pwgen = { path = "../pwgen" }

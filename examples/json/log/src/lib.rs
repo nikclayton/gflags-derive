@@ -1,3 +1,4 @@
+use anyhow::Result;
 use gflags::custom::{Arg, Error, Value};
 use gflags_derive::GFlags;
 
@@ -46,8 +47,20 @@ pub struct Config {
     dir: String,
 }
 
-impl Config {
-    pub fn init(&self) {
-        println!("Log module initialized");
+pub fn new(config: Config) -> Result<Config> {
+    let mut config = config;
+
+    if LOG_TO_STDERR.is_present() {
+        config.to_stderr = LOG_TO_STDERR.flag;
     }
+
+    if LOG_TO_STDERR_LEVEL.is_present() {
+        config.to_stderr_level = LOG_TO_STDERR_LEVEL.flag;
+    }
+
+    if LOG_DIR.is_present() {
+        config.dir = LOG_DIR.flag.to_string();
+    }
+
+    Ok(config)
 }

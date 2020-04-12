@@ -60,6 +60,9 @@ fn impl_gflags_macro(ast: &syn::DeriveInput) -> proc_macro::TokenStream {
 /// Represents a `#[gflags(...)]` attribute on a struct or field.
 #[derive(Debug, Default)]
 struct GFlagsAttribute {
+    /// True if this field should be skipped (do not generate a flag for it)
+    skip: bool,
+
     /// Prefix to apply to this flag (or global)
     prefix: Option<String>,
 
@@ -68,6 +71,9 @@ struct GFlagsAttribute {
 
     /// Tokens that define the type to use for this flag
     ty: Option<TokenStream>,
+
+    /// Visibility for the flag
+    visibility: Option<TokenStream>,
 }
 
 impl From<Meta> for GFlagsAttribute {
@@ -82,13 +88,23 @@ impl From<Meta> for GFlagsAttribute {
         }
 
         let mut config = Self {
+            skip: false,
             prefix: None,
             flag_case: None,
             ty: None,
+            visibility: None,
         };
 
         for kv in meta.nested {
             let kv = match kv {
+                NestedMeta::Meta(Meta::Path(path)) => {
+                    if path.is_ident("skip") {
+                        config.skip = true;
+                        break;
+                    }
+
+                    abort!(path, "Unexpected key");
+                }
                 NestedMeta::Meta(Meta::NameValue(kv)) => kv,
                 _ => abort!(kv, "`#[gflags(...)]` expects key=value pairs"),
             };
@@ -121,6 +137,17 @@ impl From<Meta> for GFlagsAttribute {
                 continue;
             }
 
+            if kv.path.is_ident("visibility") {
+                config.visibility = match kv.lit {
+                    Lit::Str(lit) => Some(lit.parse().unwrap()),
+                    _ => abort!(
+                        kv.lit,
+                        "`#[gflags(visibility=...)]` expects a quoted string"
+                    ),
+                };
+                continue;
+            }
+
             abort!(kv.path, "Unknown key `{}`", kv.path.get_ident().unwrap());
         }
 
@@ -136,8 +163,31 @@ impl From<&[Attribute]> for GFlagsAttribute {
             if !meta.path().is_ident("gflags") {
                 continue;
             }
-            config = GFlagsAttribute::from(meta);
-            break;
+
+            let parsed_config = GFlagsAttribute::from(meta);
+
+            // Any results in the parsed config overwrite any existing values.
+            // This allows multiple #[gflags(...)] attributes to exist on
+            // a single field
+            if parsed_config.skip {
+                config.skip = true
+            };
+
+            if parsed_config.prefix.is_some() {
+                config.prefix = parsed_config.prefix;
+            }
+
+            if parsed_config.flag_case.is_some() {
+                config.flag_case = parsed_config.flag_case;
+            }
+
+            if parsed_config.ty.is_some() {
+                config.ty = parsed_config.ty;
+            }
+
+            if parsed_config.visibility.is_some() {
+                config.visibility = parsed_config.visibility;
+            }
         }
 
         config
@@ -163,21 +213,47 @@ fn config_from_attributes(attrs: &[Attribute]) -> Config {
 
 fn flag_from_field(config: &Config, field: &Field) -> TokenStream {
     let gfa = GFlagsAttribute::from(field.attrs.as_ref());
+    if gfa.skip {
+        return TokenStream::new();
+    }
 
     // Figure out the flag name
     let flag_name = if config.flag_case == SnakeCase {
-        let ident = format_ident!("{}_{}", config.prefix, field.ident.as_ref().unwrap());
+        let ident = if !config.prefix.is_empty() {
+            format_ident!(
+                "{}_{}",
+                config.prefix,
+                field
+                    .ident
+                    .as_ref()
+                    .expect("Unwrapping field.ident (prefix) failed")
+            )
+        } else {
+            field
+                .ident
+                .as_ref()
+                .expect("Unwrapping field.ident (no-prefix) failed")
+                .clone()
+        };
         quote! {--#ident}
     } else {
         let span = Span::call_site();
         let mut segments: Punctuated<Ident, Token![-]> = Punctuated::new();
-        segments.push(Ident::new(&config.prefix, span));
+        if !config.prefix.is_empty() {
+            segments.push(Ident::new(&config.prefix, span));
+        }
 
         let field = field.ident.as_ref().unwrap().to_string();
         for part in field.split('_') {
             segments.push(Ident::new(part, span));
         }
         quote! {--#segments}
+    };
+
+    // Figure out the visibility
+    let visibility = match gfa.visibility {
+        Some(visibility) => visibility,
+        _ => TokenStream::new(),
     };
 
     // Figure out the type
@@ -218,7 +294,7 @@ fn flag_from_field(config: &Config, field: &Field) -> TokenStream {
     let gen = quote! {
         gflags::define! {
             #( #[doc = #docs])*
-            #flag_name: #ty
+            #visibility #flag_name: #ty
         }
     };
 

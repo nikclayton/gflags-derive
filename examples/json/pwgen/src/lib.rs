@@ -1,3 +1,4 @@
+use anyhow::Result;
 use gflags_derive::GFlags;
 use rand::Rng;
 
@@ -20,11 +21,21 @@ impl Default for Config {
     }
 }
 
-impl Config {
-    pub fn init(&self) {
-        println!("PWGen module initialised");
+pub fn new(config: Config) -> Result<Config> {
+    let mut config = config;
+
+    if PW_CHARSET.is_present() {
+        config.charset = PW_CHARSET.flag.to_string();
     }
 
+    if PW_LENGTH.is_present() {
+        config.length = PW_LENGTH.flag;
+    }
+
+    Ok(config)
+}
+
+impl Config {
     /// Generate a terrible password
     pub fn generate(&self) -> String {
         let mut rng = rand::thread_rng();

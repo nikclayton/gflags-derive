@@ -7,6 +7,10 @@ fn main() {
     prost_build.type_attribute(".pwgen.config.v1.Config", "#[gflags(prefix=\"pw-\")]");
 
     prost_build.field_attribute(
+        ".pwgen.config.v1.Config",
+        "#[gflags(visibility = \"pub(super)\")]",
+    );
+    prost_build.field_attribute(
         ".pwgen.config.v1.Config.charset",
         "#[gflags(type=\"&str\")]",
     );
