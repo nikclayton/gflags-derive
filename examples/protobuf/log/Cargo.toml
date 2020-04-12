@@ -8,6 +8,7 @@ edition = "2018"
 prost = "0.6"
 gflags = "0.3"
 gflags-derive = { path = "../../.." }
+serde = { version = "1.0", features = ["derive"] }
 strum = "0.18.0"
 strum_macros = "0.18.0"
 

@@ -7,6 +7,7 @@ import "pwgen/proto/config/v1/config.proto";
 
 message Config {
     string config_file = 1;
+    bool debug = 2;
 
     log.config.v1.Config log = 3;
     pwgen.config.v1.Config pwgen = 4;

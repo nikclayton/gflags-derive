@@ -1,0 +1,13 @@
+{
+  "config-file": "foo",
+  "port": 0,
+  "log": {
+    "to-stderr": true,
+    "to-stderr-level": "Info",
+    "to-file": false,
+    "to-file-level": "Info",
+    "dir": "/var/log",
+    "to-journald": true,
+    "to-journald-level": "Warning"
+  }
+}

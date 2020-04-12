@@ -1,23 +1,24 @@
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 
 pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/pwgen.config.v1.rs"));
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Config {
     charset: String,
     length: u32,
 }
 
-impl From<proto::Config> for Config {
-    fn from(pb: proto::Config) -> Self {
+impl From<&proto::Config> for Config {
+    fn from(pb: &proto::Config) -> Self {
         let charset = if proto::PW_CHARSET.is_present() {
             proto::PW_CHARSET.flag.to_string()
         } else if pb.charset.is_empty() {
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_string()
         } else {
-            pb.charset
+            pb.charset.clone()
         };
 
         let length = if proto::PW_LENGTH.is_present() {

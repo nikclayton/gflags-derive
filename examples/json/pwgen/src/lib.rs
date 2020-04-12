@@ -1,9 +1,11 @@
 use anyhow::Result;
 use gflags_derive::GFlags;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, GFlags)]
-#[gflags(prefix = "pw-")]
+#[derive(Clone, Debug, Deserialize, Serialize, GFlags)]
+#[serde(rename_all = "kebab-case")]
+#[gflags(prefix = "pw")]
 pub struct Config {
     /// String to use for password characters
     charset: String,

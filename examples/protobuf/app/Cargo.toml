@@ -8,9 +8,11 @@ edition = "2018"
 anyhow = "1.0"
 prost = "0.6"
 gflags = "0.3"
-gflags-derive = { path = "../../../" }
+gflags-derive = { path = "../../.." }
 log = { path = "../log" }
 pwgen = { path = "../pwgen" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 [build-dependencies]
 prost-build = "0.6"

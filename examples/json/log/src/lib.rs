@@ -1,8 +1,9 @@
 use anyhow::Result;
 use gflags::custom::{Arg, Error, Value};
 use gflags_derive::GFlags;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub enum Level {
     Fatal,
     Critical,
@@ -34,7 +35,8 @@ impl Value for Level {
     }
 }
 
-#[derive(Clone, Default, Debug, GFlags)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize, GFlags)]
+#[serde(rename_all = "kebab-case")]
 #[gflags(prefix = "log-")]
 pub struct Config {
     // Whether to log to STDERR
