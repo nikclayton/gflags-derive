@@ -6,6 +6,8 @@ edition = "2018"
 
 [dependencies]
 prost = "0.6"
+gflags = "0.3"
+gflags-derive = { path = "../../.." }
 
 [build-dependencies]
 prost-build = "0.6"

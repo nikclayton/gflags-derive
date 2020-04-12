@@ -1,3 +1,6 @@
+use gflags::custom::{Arg, Error, Value};
+use gflags_derive::GFlags;
+
 #[derive(Clone, Copy, Debug)]
 pub enum Level {
     Fatal,
@@ -15,7 +18,23 @@ impl Default for Level {
     }
 }
 
-#[derive(Clone, Default, Debug)]
+impl Value for Level {
+    fn parse(arg: Arg) -> gflags::custom::Result<Self> {
+        match arg.get_str().to_ascii_lowercase().as_ref() {
+            "fatal" => Ok(Level::Fatal),
+            "critical" => Ok(Level::Critical),
+            "error" => Ok(Level::Error),
+            "warning" => Ok(Level::Warning),
+            "info" => Ok(Level::Info),
+            "debug" => Ok(Level::Debug),
+            "trace" => Ok(Level::Trace),
+            _ => Err(Error::new("invalid logging level")),
+        }
+    }
+}
+
+#[derive(Clone, Default, Debug, GFlags)]
+#[gflags(prefix = "log-")]
 pub struct Config {
     // Whether to log to STDERR
     to_stderr: bool,

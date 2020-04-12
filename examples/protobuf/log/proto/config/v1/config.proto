@@ -15,6 +15,7 @@ enum Level {
 
 message Config {
     // Whether to log to STDERR
+    // line two of this comment
     bool to_stderr = 1;
 
     // If logging to STDERR, what level to log at

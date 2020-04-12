@@ -1,6 +1,8 @@
+use gflags_derive::GFlags;
 use rand::Rng;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, GFlags)]
+#[gflags(prefix = "pw-")]
 pub struct Config {
     /// String to use for password characters
     charset: String,

@@ -5,3 +5,5 @@ authors = ["Nik Clayton <nik@ngo.org.uk>"]
 edition = "2018"
 
 [dependencies]
+gflags = "0.3"
+gflags-derive = { path = "../../.." }
