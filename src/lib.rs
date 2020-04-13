@@ -5,8 +5,8 @@ use proc_macro2::{Ident, Literal, Span, TokenStream, TokenTree};
 use proc_macro_error::{abort, abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
 use syn::{
-    punctuated::Punctuated, Attribute, Data, DataStruct, Field, Fields, FieldsNamed, Lit, Meta,
-    NestedMeta, Token, Type,
+    punctuated::Punctuated, Attribute, Data, DataStruct, Field, Fields, FieldsNamed,
+    GenericArgument, Lit, Meta, NestedMeta, Path, PathArguments, PathSegment, Token, Type,
 };
 
 #[derive(Debug, PartialEq)]
@@ -261,14 +261,30 @@ fn flag_from_field(config: &Config, field: &Field) -> TokenStream {
         Some(ty) => ty,
         _ => match &field.ty {
             Type::Path(ty) => {
-                let last = ty.path.segments.last().unwrap();
-                let ident = last.ident.clone();
-                let string = last.ident.to_string();
+                let mut last = ty.path.segments.last().unwrap();
+                let mut ident = &last.ident;
 
-                println!("last segment: {}", string);
-                match string.as_ref() {
-                    "String" => quote! { &str },
-                    _ => quote! { #ident },
+                let mut final_type = ty.clone();
+
+                // Replace `Option<T>` with `T` before proceeding
+                if *ident == "Option" {
+                    let option_type = syn::Type::from(final_type);
+
+                    let new_ty = extract_type_from_option(&option_type);
+                    match new_ty {
+                        Some(Type::Path(new_ty)) => {
+                            final_type = new_ty.clone();
+                            last = final_type.path.segments.last().unwrap();
+                            ident = &last.ident;
+                        }
+                        _ => abort!(&field.ty, "Unexpected type"),
+                    }
+                }
+
+                if *ident == "String" {
+                    quote! { &str }
+                } else {
+                    quote! { #final_type }
                 }
             }
             _ => abort!(&field.ty, "Unexpected type"),
@@ -299,6 +315,46 @@ fn flag_from_field(config: &Config, field: &Field) -> TokenStream {
     };
 
     gen
+}
+
+/// Given a `syn::Type` that is an `Option<T>`, return the `syn::Type` for the
+/// `T`, or `None` if it's not a `syn::Type::Path`.
+///
+/// https://stackoverflow.com/questions/55271857/how-can-i-get-the-t-from-an-optiont-when-using-syn
+fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
+    fn extract_type_path(ty: &syn::Type) -> Option<&Path> {
+        match *ty {
+            syn::Type::Path(ref typepath) if typepath.qself.is_none() => Some(&typepath.path),
+            _ => None,
+        }
+    }
+
+    fn extract_option_segment(path: &Path) -> Option<&PathSegment> {
+        let idents_of_path = path.segments.iter().fold(String::new(), |mut acc, v| {
+            acc.push_str(&v.ident.to_string());
+            acc.push('|');
+            acc
+        });
+        vec!["Option|", "std|option|Option|", "core|option|Option|"]
+            .into_iter()
+            .find(|s| idents_of_path == *s)
+            .and_then(|_| path.segments.last())
+    }
+
+    extract_type_path(ty)
+        .and_then(|path| extract_option_segment(path))
+        .and_then(|pair_path_segment| {
+            let type_params = &pair_path_segment.arguments;
+            // It should have only one angle-bracketed param ("<String>"):
+            match *type_params {
+                PathArguments::AngleBracketed(ref params) => params.args.first(),
+                _ => None,
+            }
+        })
+        .and_then(|generic_arg| match *generic_arg {
+            GenericArgument::Type(ref ty) => Some(ty),
+            _ => None,
+        })
 }
 
 #[proc_macro_derive(GFlags, attributes(gflags))]
