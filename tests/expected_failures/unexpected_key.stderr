@@ -1,0 +1,5 @@
+error: Invalid keyword `foo`
+ --> $DIR/unexpected_key.rs:5:10
+  |
+5 | #[gflags(foo)]
+  |          ^^^

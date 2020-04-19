@@ -1,0 +1,5 @@
+error: `#[gflags(prefix=...)]` expects a quoted string
+ --> $DIR/prefix_wrong_type.rs:5:17
+  |
+5 | #[gflags(prefix=1)]
+  |                 ^

@@ -1,0 +1,5 @@
+error: `#[gflags(...)]` expects a parameter list
+ --> $DIR/missing_parameter_list.rs:5:3
+  |
+5 | #[gflags]
+  |   ^^^^^^

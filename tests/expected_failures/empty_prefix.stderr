@@ -1,0 +1,5 @@
+error: `#[gflags(prefix=...)]` expects a non-empty quoted string
+ --> $DIR/empty_prefix.rs:5:17
+  |
+5 | #[gflags(prefix="")]
+  |                 ^^

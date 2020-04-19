@@ -1,0 +1,12 @@
+error[E0603]: static `TO_STDERR` is private
+  --> $DIR/derive_with_visibility.rs:27:24
+   |
+27 |     if inner_for_test::TO_STDERR.is_present() {
+   |                        ^^^^^^^^^ this static is private
+   |
+note: the static `TO_STDERR` is defined here
+  --> $DIR/derive_with_visibility.rs:14:14
+   |
+14 |     #[derive(GFlags)]
+   |              ^^^^^^
+   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)

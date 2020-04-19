@@ -1,0 +1,5 @@
+error: `#[gflags(skip)]` does not take a value
+  --> $DIR/skip_wrong_type.rs:11:19
+   |
+11 |     #[gflags(skip=1)]
+   |                   ^

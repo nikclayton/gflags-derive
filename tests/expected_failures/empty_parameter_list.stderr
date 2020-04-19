@@ -1,0 +1,5 @@
+error: `#[gflags(...)]` expects a non-empty parameter list
+ --> $DIR/empty_parameter_list.rs:5:3
+  |
+5 | #[gflags()]
+  |   ^^^^^^^^

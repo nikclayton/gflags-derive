@@ -1,0 +1,5 @@
+error: `#[gflags(type=...)]` expects a quoted string
+  --> $DIR/type_wrong_type.rs:11:19
+   |
+11 |     #[gflags(type=1)]
+   |                   ^
