@@ -1,3 +1,290 @@
+//! Derive command line arguments from `struct` fields using
+//! [`gflags`][gflags].
+//!
+//! This is an alternative to the "Defining flags" section of the
+//! [`gflags`][gflags] manual.
+//!
+//! [gflags]: https://docs.rs/gflags
+//!
+//! # Defining flags
+//!
+//! Create a struct to contain the configuration data for your library or
+//! binary.
+//!
+//! For example, this hypothetical logging library that defines two
+//! configuration options.
+//!
+//! ```ignore
+//! struct Config {
+//!     /// True if log messages should also be sent to STDERR
+//!     to_stderr: bool,
+//!
+//!     /// The directory to write log files to
+//!     dir: String,
+//! }
+//! ```
+//!
+//! Flags are added to the registry by deriving `gflags_derive::Gflags` on the
+//! struct.
+//!
+//! ```ignore
+//! use gflags_derive::GFlags;
+//!
+//! #[derive(GFlags)]
+//! struct Config {
+//!     /// True if log messages should also be sent to STDERR
+//!     to_stderr: bool,
+//!
+//!     /// The directory to write log files to
+//!     dir: String,
+//! }
+//! ```
+//!
+//! You now have two new flags, as if you had written:
+//!
+//! ```ignore
+//! gflags::define! {
+//!     /// True if log messages should also be sent to STDERR
+//!     --to_stderr: bool
+//! }
+//!
+//! gflags::define! {
+//!     /// The directory to write log files to
+//!     --dir: &str
+//! }
+//! ```
+//!
+//! Note that:
+//!
+//! - The comment on each struct field is also the documentation comment for
+//!   the flag, which becomes its help text.
+//! - The type for the `--dir` flag has been converted from `String` to `&str`.
+//!
+//! # Defining a flag prefix
+//!
+//! You might want all the flag names to have the same prefix, without needing
+//! to use that prefix on the field names. For example, a logging module might
+//! want all the flags to start `log-` or `log_`.
+//!
+//! To support this, use the `#[gflags(prefix = "...")]` attribute on the
+//! struct.
+//!
+//! ```ignore
+//! use gflags_derive::GFlags;
+//!
+//! #[derive(GFlags)]
+//! #[gflags(prefix = "log_")]
+//! struct Config {
+//!     /// True if log messages should also be sent to STDERR
+//!     to_stderr: bool,
+//!
+//!     /// The directory to write log files to
+//!     dir: String,
+//! }
+//! ```
+//!
+//! The flag definitions now include the prefix, as if you had written:
+//!
+//! ```ignore
+//! gflags::define! {
+//!     /// True if log messages should also be sent to STDERR
+//!     --log_to_stderr: bool
+//! }
+//!
+//! gflags::define! {
+//!     /// The directory to write log files to
+//!     --log_dir: &str
+//! }
+//! ```
+//!
+//! If the flag prefix ends with `-` then the macro converts the flag names to
+//! kebab-case instead of snake_case. So writing:
+//!
+//! ```ignore
+//! use gflags_derive::GFlags;
+//!
+//! #[derive(gflags_derive::GFlags)]
+//! #[gflags(prefix = "log-")]
+//! struct Config {
+//!     /// True if log messages should also be sent to STDERR
+//!     to_stderr: bool,
+//!
+//!     /// The directory to write log files to
+//!     dir: String,
+//! }
+//! ```
+//!
+//! generates the following flags:
+//!
+//! ```ignore
+//! gflags::define! {
+//!     /// True if log messages should also be sent to STDERR
+//!     --log-to-stderr: bool
+//! }
+//!
+//! gflags::define! {
+//!     /// The directory to write log files to
+//!     --log-dir: &str
+//! }
+//! ```
+//!
+//! # Handling `Option<T>`
+//!
+//! Your configuration `struct` may have fields that have `Option<T>` types.
+//! For these fields `gflags_derive` creates a flag of the inner type `T`.
+//!
+//! # Customising the type
+//!
+//! To use a different type for the field and the command line flag add a
+//! `#[gflags(type = "...")]` attribute to the field.  For example, to store
+//! the log directory as a `PathBuf` but accept a string on the command line:
+//!
+//! ```ignore
+//! use gflags_derive::GFlags;
+//! use std::path::PathBuf;
+//!
+//! #[derive(GFlags)]
+//! #[gflags(prefix = "log-")]
+//! struct Config {
+//!     /// True if log messages should also be sent to STDERR
+//!     to_stderr: bool,
+//!
+//!     /// The directory to write log files to
+//!     #[gflags(type = "&str")]
+//!     dir: PathBuf,
+//! }
+//! ```
+//!
+//! # Customising the visibility
+//!
+//! To use a different visibility for the flags add a
+//! `#[gflags(visibility = "...")]` attribute to the field and give a Rust
+//! visibility specifier.
+//!
+//! In this example the `LOG_DIR` flag variable will be visible in the parent
+//! module.
+//!
+//! ```ignore
+//! use gflags_derive::GFlags;
+//! use std::path::PathBuf;
+//!
+//! #[derive(GFlags)]
+//! #[gflags(prefix = "log-")]
+//! struct Config {
+//!     /// True if log messages should also be sent to STDERR
+//!     to_stderr: bool,
+//!
+//!     /// The directory to write log files to
+//!     #[gflags(visibility = "pub(super)")]
+//!     #[gflags(type = "&str")]
+//!     dir: PathBuf,
+//! }
+//! ```
+//!
+//! # Skipping flags
+//!
+//! To skip flag generation for a field add a `#[gflags(skip)]` attribute to
+//! the field.
+//!
+//! ```ignore
+//! use gflags_derive::GFlags;
+//! use std::path::PathBuf;
+//!
+//! #[derive(GFlags)]
+//! #[gflags(prefix = "log-")]
+//! struct Config {
+//!     /// True if log messages should also be sent to STDERR
+//!     to_stderr: bool,
+//!
+//!     /// The directory to write log files to
+//!     #[gflags(skip)]
+//!     dir: PathBuf,
+//! }
+//! ```
+//!
+//! No `--log-dir` flag will be generated.
+//!
+//! # Providing multiple attributes
+//!
+//! If you want to provide multiple attributes on a field then you can mix
+//! and match specifing multiple options in a single `#[gflags(...)]` attribute
+//! and specifying multiple `#[gflags(...)]` attributes. The following examples
+//! are identical.
+//!
+//! ```ignore
+//! ...
+//!     /// The directory to write log files to
+//!     #[gflags(type = "&str", visibility = "pub(super)")]
+//!     dir: PathBuf,
+//! ...
+//! ```
+//!
+//! ```ignore
+//! ...
+//!     /// The directory to write log files to
+//!     #[gflags(type = "&str")]
+//!     #[gflags(visibility = "pub(super)")]
+//!     dir: PathBuf,
+//! ...
+//! ```
+//!
+//! # Deserializing and merging flags
+//!
+//! This supports a powerful pattern for configuring an application that is
+//! composed of multiple crates, where each crate exports a configuration and
+//! supports multiple flags, and the application crate defines a configuration
+//! that imports the configuration structs from the component crates.
+//!
+//! This master configuration can be deserialized from e.g. a JSON file, and
+//! then each component crate can have the opportunity to override the loaded
+//! configuration with information from the command line flags that are specific
+//! to that crate.
+//!
+//! See the `examples/json` directory for a complete application that does
+//! this.
+//!
+//! # Use with `prost`
+//!
+//! This macro can be used to derive flags for `structs` generated from
+//! Protobuffer schemas using `prost` and `prost-build`.
+//!
+//! Given this `.proto` file
+//!
+//! ```proto
+//! syntax = "proto3"
+//!
+//! package log.config.v1;
+//!
+//! message Config {
+//!     // True if log messages should also be sent to STDERR
+//!     bool to_stderr = 1;
+//!
+//!     // The directory to write log files to
+//!     string dir = 2;
+//! }
+//! ```
+//!
+//! This `build.rs` file will add the relevant attributes to add the `log-`
+//! prefix and skip the `dir` field.
+//!
+//! ```ignore
+//! fn main() {
+//!     let mut config = prost_build::Config::new();
+//!
+//!     config.type_attribute(".log.config.v1.Config", "#[derive(gflags_derive::GFlags)]");
+//!     config.type_attribute(".log.config.v1.Config", "#[gflags(prefix=\"log-\")]");
+//!
+//!     config.field_attribute(".log.config.v1.Config.dir", "#[gflags(skip)]");
+//!
+//!     config
+//!         .compile_protos(&["proto/log/config/v1/config.proto"], &["proto"])
+//!         .unwrap();
+//! }
+//! ```
+//!
+//! See the `examples/protobuf` directory for a complete application that
+//! does this.
+
 extern crate proc_macro;
 
 use crate::FlagCase::{KebabCase, SnakeCase};
@@ -406,6 +693,23 @@ fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
         })
 }
 
+/// # Struct level attributes
+///
+/// `#[gflags(prefix = "...")]` -- apply this prefix to flag names
+///
+/// # Field level attributes
+///
+/// `#[gflags(default = ...)]` -- default value for this flag
+///
+/// `#[gflags(placeholder= "...")]` -- placeholder to display in help
+///
+/// `#[gflags(skip)]` -- do not generate a flag for this field
+///
+/// `#[gflags(type = "...")]` -- generate a flag with this type
+///
+/// `#[gflags(visibility = "...")]` -- generate a flag with this visibility
+///
+/// Refer to the [crate level documentation](index.html) for a complete example.
 #[proc_macro_derive(GFlags, attributes(gflags))]
 #[proc_macro_error]
 pub fn gflags_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
