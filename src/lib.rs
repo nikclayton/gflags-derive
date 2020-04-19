@@ -4,6 +4,7 @@ use crate::FlagCase::{KebabCase, SnakeCase};
 use proc_macro2::{Ident, Literal, Span, TokenStream, TokenTree};
 use proc_macro_error::{abort, abort_call_site, proc_macro_error};
 use quote::{format_ident, quote};
+use std::collections::HashSet;
 use syn::{
     punctuated::Punctuated, Attribute, Data, DataStruct, Field, Fields, FieldsNamed,
     GenericArgument, Lit, Meta, NestedMeta, Path, PathArguments, PathSegment, Token, Type,
@@ -95,22 +96,42 @@ impl From<Meta> for GFlagsAttribute {
             visibility: None,
         };
 
+        let keywords: HashSet<&'static str> = ["prefix", "skip", "type", "visibility"]
+            .iter()
+            .cloned()
+            .collect();
+
         for kv in meta.nested {
             let kv = match kv {
                 NestedMeta::Meta(Meta::Path(path)) => {
+                    let keyword = path.get_ident().expect("No ident found");
+                    if !keywords.contains(&keyword.to_string().as_ref()) {
+                        abort!(path, "Invalid keyword `{}`", keyword);
+                    }
+
                     if path.is_ident("skip") {
                         config.skip = true;
                         break;
                     }
 
-                    abort!(path, "Unexpected key");
+                    abort!(path, "Keyword `{}` requires a value", keyword);
                 }
                 NestedMeta::Meta(Meta::NameValue(kv)) => kv,
                 _ => abort!(kv, "`#[gflags(...)]` expects key=value pairs"),
             };
+
             if kv.path.is_ident("prefix") {
                 let mut prefix = match kv.lit {
-                    Lit::Str(lit) => lit.value(),
+                    Lit::Str(lit) => {
+                        if lit.value().is_empty() {
+                            abort!(
+                                lit,
+                                "`#[gflags(prefix=...)]` expects a non-empty quoted string"
+                            );
+                        }
+
+                        lit.value()
+                    }
                     _ => abort!(kv.lit, "`#[gflags(prefix=...)]` expects a quoted string"),
                 };
 
@@ -128,9 +149,22 @@ impl From<Meta> for GFlagsAttribute {
                 continue;
             }
 
+            if kv.path.is_ident("skip") {
+                abort!(kv.lit, "`#[gflags(skip)]` does not take a value");
+            }
+
             if kv.path.is_ident("type") {
                 config.ty = match kv.lit {
-                    Lit::Str(lit) => Some(lit.parse().unwrap()),
+                    Lit::Str(lit) => {
+                        if lit.value().is_empty() {
+                            abort!(
+                                lit,
+                                "`#[gflags(type=...)]` expects a non-empty quoted string"
+                            );
+                        }
+
+                        Some(lit.parse().unwrap())
+                    }
                     _ => abort!(kv.lit, "`#[gflags(type=...)]` expects a quoted string"),
                 };
 
@@ -139,7 +173,15 @@ impl From<Meta> for GFlagsAttribute {
 
             if kv.path.is_ident("visibility") {
                 config.visibility = match kv.lit {
-                    Lit::Str(lit) => Some(lit.parse().unwrap()),
+                    Lit::Str(lit) => {
+                        if lit.value().is_empty() {
+                            abort!(
+                                lit,
+                                "`#[gflags(visibility=...)]` expects a non-empty quoted string"
+                            )
+                        }
+                        Some(lit.parse().unwrap())
+                    }
                     _ => abort!(
                         kv.lit,
                         "`#[gflags(visibility=...)]` expects a quoted string"
@@ -148,7 +190,11 @@ impl From<Meta> for GFlagsAttribute {
                 continue;
             }
 
-            abort!(kv.path, "Unknown key `{}`", kv.path.get_ident().unwrap());
+            abort!(
+                kv.path,
+                "Invalid keyword `{}`",
+                kv.path.get_ident().unwrap()
+            );
         }
 
         config
@@ -159,34 +205,37 @@ impl From<&[Attribute]> for GFlagsAttribute {
     fn from(attrs: &[Attribute]) -> Self {
         let mut config: Self = Default::default();
         for attr in attrs {
-            let meta = attr.parse_meta().unwrap();
-            if !meta.path().is_ident("gflags") {
-                continue;
-            }
+            match attr.parse_meta() {
+                Ok(meta) => {
+                    if !meta.path().is_ident("gflags") {
+                        continue;
+                    }
+                    let parsed_config = GFlagsAttribute::from(meta);
 
-            let parsed_config = GFlagsAttribute::from(meta);
+                    // Any results in the parsed config overwrite any existing values.
+                    // This allows multiple #[gflags(...)] attributes to exist on
+                    // a single field
+                    if parsed_config.skip {
+                        config.skip = true
+                    };
 
-            // Any results in the parsed config overwrite any existing values.
-            // This allows multiple #[gflags(...)] attributes to exist on
-            // a single field
-            if parsed_config.skip {
-                config.skip = true
-            };
+                    if parsed_config.prefix.is_some() {
+                        config.prefix = parsed_config.prefix;
+                    }
 
-            if parsed_config.prefix.is_some() {
-                config.prefix = parsed_config.prefix;
-            }
+                    if parsed_config.flag_case.is_some() {
+                        config.flag_case = parsed_config.flag_case;
+                    }
 
-            if parsed_config.flag_case.is_some() {
-                config.flag_case = parsed_config.flag_case;
-            }
+                    if parsed_config.ty.is_some() {
+                        config.ty = parsed_config.ty;
+                    }
 
-            if parsed_config.ty.is_some() {
-                config.ty = parsed_config.ty;
-            }
-
-            if parsed_config.visibility.is_some() {
-                config.visibility = parsed_config.visibility;
+                    if parsed_config.visibility.is_some() {
+                        config.visibility = parsed_config.visibility;
+                    }
+                }
+                Err(e) => abort!(attr, e),
             }
         }
 
