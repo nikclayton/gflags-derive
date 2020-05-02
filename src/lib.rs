@@ -353,6 +353,8 @@
 //! See the `examples/protobuf` directory for a complete application that
 //! does this.
 
+#![doc(html_root_url = "https://docs.rs/gflags-derive/0.1.0")]
+
 extern crate proc_macro;
 
 use crate::FlagCase::{KebabCase, SnakeCase};

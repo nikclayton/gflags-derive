@@ -2,10 +2,19 @@
 name = "gflags-derive"
 version = "0.1.0"
 authors = ["Nik Clayton <nik@ngo.org.uk>"]
+license = "MIT OR Apache-2.0"
+description = "Derive gflags invocations from struct fields"
+readme = "README.md"
+homepage = "https://github.com/nikclayton/gflags-derive"
+repository = "https://github.com/nikclayton/gflags-derive"
+documentation = "https://docs.rs/gflags-derive"
+keywords = ["cli", "arg", "argument", "flags", "gflags"]
+categories = ["command-line-interface", "config"]
 edition = "2018"
 
 [lib]
 proc-macro = true
+path = "src/lib.rs"
 
 [dependencies]
 syn = { version = "1", features = ["full", "extra-traits"] }
@@ -16,3 +25,4 @@ proc-macro-error = "1"
 [dev-dependencies]
 gflags = "0.3"
 trybuild = "1.0.25"
+version-sync = "0.9.0"
