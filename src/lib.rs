@@ -103,7 +103,7 @@
 //! ```ignore
 //! use gflags_derive::GFlags;
 //!
-//! #[derive(gflags_derive::GFlags)]
+//! #[derive(GFlags)]
 //! #[gflags(prefix = "log-")]
 //! struct Config {
 //!     /// True if log messages should also be sent to STDERR
@@ -132,6 +132,44 @@
 //!
 //! Your configuration `struct` may have fields that have `Option<T>` types.
 //! For these fields `gflags_derive` creates a flag of the inner type `T`.
+//!
+//! # Customising the default value
+//!
+//! To specify a default value for the flag add a `#[gflags(default = ...)]`
+//! attribute to the field.
+//!
+//! The value for the attribute is the literal value, not a quoted value.
+//! Only quote the value if the type of the field is a string or can be
+//! created from a string.
+//!
+//! For example, to set the default value of the `--log-to-stderr` flag to
+//! `true`:
+//!
+//! ```ignore
+//! use gflags_derive::GFlags;
+//!
+//! #[derive(GFlags)]
+//! #[gflags(prefix = "log-")]
+//! struct Config {
+//!     /// True if log messages should also be sent to STDERR
+//!     #[gflags(default = true)]
+//!     to_stderr: bool,
+//!
+//!     /// The directory to write log files to
+//!     dir: String,
+//! }
+//! ```
+//!
+//! Specifying this with quotes, `#[gflags(default = "true")]` will give a
+//! compile time error:
+//!
+//! ```text
+//! expected `bool`, found `&str`
+//! ```
+//!
+//! > **Important**: This does *not* change the default value when an instance
+//! of the `Config` struct is created. It only changes the default value of
+//! the `LOG_TO_STDERR.flag` variable.
 //!
 //! # Customising the type
 //!
@@ -179,6 +217,36 @@
 //!     #[gflags(type = "&str")]
 //!     dir: PathBuf,
 //! }
+//! ```
+//!
+//! # Specifying a placeholder
+//!
+//! To give a placeholder that will appear in the flag's `help` output add a
+//! `#[gflags(placeholder = "...")]` attribute to the field. This will be
+//! wrapped in `<...>` for display.
+//!
+//! ```ignore
+//! use gflags_derive::GFlags;
+//! use std::path::PathBuf;
+//!
+//! #[derive(GFlags)]
+//! #[gflags(prefix = "log-")]
+//! struct Config {
+//!     /// True if log messages should also be sent to STDERR
+//!     to_stderr: bool,
+//!
+//!     /// The directory to write log files to
+//!     #[gflags(placeholder = "DIR")]
+//!     #[gflags(type = "&str")]
+//!     dir: PathBuf,
+//! }
+//! ```
+//!
+//! In the help output the `--log-dir` flag will appear as:
+//!
+//! ```text
+//! --log-dir <DIR>
+//!         The directory to write log files to
 //! ```
 //!
 //! # Skipping flags
@@ -362,6 +430,12 @@ struct GFlagsAttribute {
 
     /// Visibility for the flag
     visibility: Option<TokenStream>,
+
+    /// Placeholder to display in the help
+    placeholder: Option<TokenStream>,
+
+    /// Default value if the flag is not set
+    default: Option<TokenStream>,
 }
 
 impl From<Meta> for GFlagsAttribute {
@@ -375,18 +449,19 @@ impl From<Meta> for GFlagsAttribute {
             abort!(meta, "`#[gflags(...)]` expects a non-empty parameter list");
         }
 
-        let mut config = Self {
-            skip: false,
-            prefix: None,
-            flag_case: None,
-            ty: None,
-            visibility: None,
-        };
+        let mut config = GFlagsAttribute::default();
 
-        let keywords: HashSet<&'static str> = ["prefix", "skip", "type", "visibility"]
-            .iter()
-            .cloned()
-            .collect();
+        let keywords: HashSet<&'static str> = [
+            "default",
+            "placeholder",
+            "prefix",
+            "skip",
+            "type",
+            "visibility",
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
         for kv in meta.nested {
             let kv = match kv {
@@ -406,6 +481,32 @@ impl From<Meta> for GFlagsAttribute {
                 NestedMeta::Meta(Meta::NameValue(kv)) => kv,
                 _ => abort!(kv, "`#[gflags(...)]` expects key=value pairs"),
             };
+
+            if kv.path.is_ident("default") {
+                let lit = kv.lit;
+                config.default = Some(quote! { = #lit });
+                continue;
+            }
+
+            if kv.path.is_ident("placeholder") {
+                config.placeholder = match kv.lit {
+                    Lit::Str(lit) => {
+                        if lit.value().is_empty() {
+                            abort!(
+                                lit,
+                                "`#[gflags(placeholder=...)]` expects a non-empty quoted string"
+                            )
+                        }
+                        let tokens = lit.parse::<TokenStream>().unwrap();
+                        Some(quote! { < #tokens > })
+                    }
+                    _ => abort!(
+                        kv.lit,
+                        "`#[gflags(placeholder=...)]` expects a quoted string"
+                    ),
+                };
+                continue;
+            }
 
             if kv.path.is_ident("prefix") {
                 let mut prefix = match kv.lit {
@@ -506,6 +607,14 @@ impl From<&[Attribute]> for GFlagsAttribute {
                         config.skip = true
                     };
 
+                    if parsed_config.default.is_some() {
+                        config.default = parsed_config.default;
+                    }
+
+                    if parsed_config.placeholder.is_some() {
+                        config.placeholder = parsed_config.placeholder;
+                    }
+
                     if parsed_config.prefix.is_some() {
                         config.prefix = parsed_config.prefix;
                     }
@@ -586,6 +695,18 @@ fn flag_from_field(config: &Config, field: &Field) -> TokenStream {
         quote! {--#segments}
     };
 
+    // Figure out the default value
+    let default = match gfa.default {
+        Some(default) => default,
+        _ => TokenStream::new(),
+    };
+
+    // Figure out the placeholder
+    let placeholder = match gfa.placeholder {
+        Some(placeholder) => placeholder,
+        _ => TokenStream::new(),
+    };
+
     // Figure out the visibility
     let visibility = match gfa.visibility {
         Some(visibility) => visibility,
@@ -646,7 +767,7 @@ fn flag_from_field(config: &Config, field: &Field) -> TokenStream {
     let gen = quote! {
         gflags::define! {
             #( #[doc = #docs])*
-            #visibility #flag_name: #ty
+            #visibility #flag_name #placeholder: #ty #default
         }
     };
 
