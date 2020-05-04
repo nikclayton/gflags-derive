@@ -37,15 +37,16 @@ impl Value for Level {
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize, GFlags)]
 #[serde(rename_all = "kebab-case")]
+#[serde(default)]
 #[gflags(prefix = "log-")]
 pub struct Config {
-    // Whether to log to STDERR
+    /// Whether to log to STDERR
     to_stderr: bool,
 
-    // If logging to STDERR, what level to log at
+    /// If logging to STDERR, what level to log at
     to_stderr_level: Level,
 
-    // The directory to log to
+    /// The directory to log to
     dir: String,
 }
 

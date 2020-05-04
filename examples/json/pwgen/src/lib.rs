@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize, GFlags)]
 #[serde(rename_all = "kebab-case")]
+#[serde(default)]
 #[gflags(prefix = "pw")]
 pub struct Config {
     /// String to use for password characters
